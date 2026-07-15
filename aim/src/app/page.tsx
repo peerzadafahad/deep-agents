@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-  User, Code, Palette, Film, TrendingUp, 
+import {
+  User, Code, Palette, Film, TrendingUp,
   MessageCircle, PenTool, Headphones, Bug, Wallet,
-  ChevronRight, Wrench
+  ChevronRight, Wrench,
 } from 'lucide-react';
 
 interface Agent {
@@ -78,17 +78,17 @@ export default function RoadmapPage() {
   }, []);
 
   const updateAgentProgress = async (id: number, progress: number) => {
-    setAgents(prev => prev.map(a => a.id === id ? { ...a, progress } : a));
+    setAgents(prev => prev.map(a => (a.id === id ? { ...a, progress } : a)));
     await supabase.from('agents').update({ progress }).eq('id', id);
   };
 
   const updateTechProgress = async (id: number, progress: number) => {
-    setTechStack(prev => prev.map(t => t.id === id ? { ...t, progress } : t));
+    setTechStack(prev => prev.map(t => (t.id === id ? { ...t, progress } : t)));
     await supabase.from('tech_stack').update({ progress }).eq('id', id);
   };
 
   const updatePhaseProgress = async (id: number, progress: number) => {
-    setPhases(prev => prev.map(p => p.id === id ? { ...p, progress } : p));
+    setPhases(prev => prev.map(p => (p.id === id ? { ...p, progress } : p)));
     await supabase.from('phases').update({ progress }).eq('id', id);
   };
 
@@ -98,7 +98,8 @@ export default function RoadmapPage() {
     (agents.reduce((acc, a) => acc + a.progress, 0) / (agents.length * 100) +
       techStack.reduce((acc, t) => acc + t.progress, 0) / (techStack.length * 100) +
       phases.reduce((acc, p) => acc + p.progress, 0) / (phases.length * 100)) /
-      3 * 100
+      3 *
+      100
   );
 
   return (
@@ -152,7 +153,7 @@ export default function RoadmapPage() {
                     updateAgentProgress(agent.id, newProgress > 100 ? 100 : newProgress);
                   }}
                 >
-                  <div className="bg-indigo-600 h-2 rounded-full transition-all" style={{ width: ${agent.progress}% }} />
+                  <div className="bg-indigo-600 h-2 rounded-full transition-all" style={{ width: `${agent.progress}%` }} />
                 </div>
                 <span className="text-xs font-mono text-gray-500 dark:text-gray-400 w-8">{agent.progress}%</span>
               </div>
@@ -183,7 +184,7 @@ export default function RoadmapPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{item.tool}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.category}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={px-2 py-1 text-xs rounded-full }>
+                    <span className={`px-2 py-1 text-xs rounded-full ${statusColors[item.status] || 'bg-gray-100'}`}>
                       {item.status}
                     </span>
                   </td>
@@ -195,7 +196,7 @@ export default function RoadmapPage() {
                           updateTechProgress(item.id, newProgress > 100 ? 100 : newProgress);
                         }}
                       >
-                        <div className="bg-green-600 h-1.5 rounded-full" style={{ width: ${item.progress}% }} />
+                        <div className="bg-green-600 h-1.5 rounded-full" style={{ width: `${item.progress}%` }} />
                       </div>
                       <span className="text-xs font-mono">{item.progress}%</span>
                     </div>
@@ -220,7 +221,7 @@ export default function RoadmapPage() {
                   <h3 className="font-semibold text-lg dark:text-white">{phase.title}</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{phase.description}</p>
                 </div>
-                <span className={px-2 py-1 text-xs rounded-full }>
+                <span className={`px-2 py-1 text-xs rounded-full ${statusColors[phase.status] || 'bg-gray-100'}`}>
                   {phase.status}
                 </span>
               </div>
@@ -231,7 +232,7 @@ export default function RoadmapPage() {
                     updatePhaseProgress(phase.id, newProgress > 100 ? 100 : newProgress);
                   }}
                 >
-                  <div className="bg-indigo-600 h-3 rounded-full transition-all" style={{ width: ${phase.progress}% }} />
+                  <div className="bg-indigo-600 h-3 rounded-full transition-all" style={{ width: `${phase.progress}%` }} />
                 </div>
                 <span className="font-mono text-sm dark:text-white">{phase.progress}%</span>
               </div>
