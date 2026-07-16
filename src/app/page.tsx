@@ -142,7 +142,7 @@ export default function RoadmapPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-1 mb-3">
-                {agent.apps.map(app => (
+                {agent.apps && agent.apps.length > 0 && agent.apps.map(app => (
                   <span key={app} className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">{app}</span>
                 ))}
               </div>
