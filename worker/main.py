@@ -34,17 +34,18 @@ AGENT_PROMPTS = {
 def create_file(path, content):
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w') as f: f.write(content)
+        with open(path, 'w') as f:
+            f.write(content)
         return f"File {path} created."
     except Exception as e:
-        return str(e)
+        return f"Error: {str(e)}"
 
 def run_git_command(command):
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         return result.stdout + result.stderr
     except Exception as e:
-        return str(e)
+        return f"Error: {str(e)}"
 
 def trigger_vercel_deploy():
     if not VERCEL_DEPLOY_HOOK:
@@ -54,14 +55,14 @@ def trigger_vercel_deploy():
         res = requests.post(VERCEL_DEPLOY_HOOK)
         return f"Deploy triggered: {res.status_code}"
     except Exception as e:
-        return str(e)
+        return f"Error: {str(e)}"
 
 def update_agent_registry(name, capabilities):
     try:
         supabase.table("agents").insert({"name": name, "role": capabilities, "progress": 0}).execute()
         return f"Agent '{name}' registered."
     except Exception as e:
-        return str(e)
+        return f"Error: {str(e)}"
 
 FUNCTION_MAP = {
     "create_file": create_file,
@@ -90,7 +91,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "run_git_command",
-            "description": "Run a git command (e.g. 'git add . && git commit -m msg && git push').",
+            "description": "Run a git command.",
             "parameters": {
                 "type": "object",
                 "properties": {"command": {"type": "string"}},
@@ -124,26 +125,13 @@ TOOLS = [
 ]
 
 def process_task(task_id, agent_type, input_text):
-    print(f"Processing {task_id} ({agent_type})")
+    print(f"Processing {task_id} ({agent_type})", flush=True)
     system_prompt = AGENT_PROMPTS.get(agent_type, "You are a helpful assistant.")
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": input_text}
     ]
-    response = deepseek.chat.completions.create(
-        model="deepseek-chat",
-        messages=messages,
-        tools=TOOLS,
-        tool_choice="auto"
-    )
-    msg = response.choices[0].message
-    while msg.tool_calls:
-        messages.append(msg)
-        for tool_call in msg.tool_calls:
-            func_name = tool_call.function.name
-            args = json.loads(tool_call.function.arguments)
-            result = FUNCTION_MAP[func_name](**args)
-            messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
+    try:
         response = deepseek.chat.completions.create(
             model="deepseek-chat",
             messages=messages,
@@ -151,20 +139,40 @@ def process_task(task_id, agent_type, input_text):
             tool_choice="auto"
         )
         msg = response.choices[0].message
-    final_output = msg.content or "Task completed."
-    supabase.table("agent_tasks").update({
-        "status": "in_review",
-        "output_text": final_output
-    }).eq("id", task_id).execute()
-    supabase.table("agent_logs").insert({
-        "task_id": task_id,
-        "model_used": "deepseek-chat",
-        "tokens_used": response.usage.total_tokens,
-        "cost": response.usage.total_tokens * 0.00000014
-    }).execute()
+        while msg.tool_calls:
+            messages.append(msg)
+            for tool_call in msg.tool_calls:
+                func_name = tool_call.function.name
+                args = json.loads(tool_call.function.arguments)
+                result = FUNCTION_MAP[func_name](**args)
+                messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
+            response = deepseek.chat.completions.create(
+                model="deepseek-chat",
+                messages=messages,
+                tools=TOOLS,
+                tool_choice="auto"
+            )
+            msg = response.choices[0].message
+        final_output = msg.content or "Task completed."
+        supabase.table("agent_tasks").update({
+            "status": "in_review",
+            "output_text": final_output
+        }).eq("id", task_id).execute()
+        supabase.table("agent_logs").insert({
+            "task_id": task_id,
+            "model_used": "deepseek-chat",
+            "tokens_used": response.usage.total_tokens,
+            "cost": response.usage.total_tokens * 0.00000014
+        }).execute()
+    except Exception as e:
+        print(f"Error processing task {task_id}: {e}", flush=True)
+        supabase.table("agent_tasks").update({
+            "status": "failed",
+            "output_text": str(e)
+        }).eq("id", task_id).execute()
 
 def task_poller():
-    print("Poller started.")
+    print("Poller started.", flush=True)
     while True:
         try:
             res = supabase.table("agent_tasks").select("*").eq("status", "ai_processing").limit(1).execute()
@@ -172,7 +180,7 @@ def task_poller():
                 task = res.data[0]
                 process_task(task["id"], task["agent_type"], task["input_text"])
         except Exception as e:
-            print(f"Poll error: {e}")
+            print(f"Poll error: {e}", flush=True)
         time.sleep(5)
 
 @app.on_event("startup")
@@ -182,3 +190,7 @@ def startup():
 @app.get("/")
 def root():
     return {"status": "AiM Worker running"}
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
