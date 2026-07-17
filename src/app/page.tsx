@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import {
-  User, Code, Palette, Film, TrendingUp,
-  MessageCircle, PenTool, Headphones, Bug, Wallet,
-  ChevronRight, Wrench,
-} from 'lucide-react';
+import {User, Code, Palette, Film, TrendingUp,PenTool, Headphones, Bug, Wallet, ChevronRight, Wrench,} from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
+import BuilderSidebar from '@/components/BuilderSidebar';
 
 interface Agent {
   id: number;
