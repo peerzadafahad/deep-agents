@@ -28,6 +28,9 @@ export default function BuilderPage() {
     setResponses(prev => [...prev, {role:'you', text:command}]);
     setInput('');
 
+    // Show "thinking" indicator
+    setResponses(prev => [...prev, {role:'builder', text:'⏳ Processing...'}]);
+
     const { data, error } = await supabase
       .from('agent_tasks')
       .insert({ agent_type: 'Builder', input_text: command, status: 'ai_processing' })
@@ -35,12 +38,14 @@ export default function BuilderPage() {
       .single();
 
     if (error) {
-      setResponses(prev => [...prev, {role:'builder', text:`❌ ${error.message}`}]);
+      setResponses(prev => prev.filter(r => r.text !== '⏳ Processing...').concat({role:'builder', text:`❌ ${error.message}`}));
       return;
     }
 
     const taskId = data.id;
     let attempts = 0;
+    const maxAttempts = 60; // 2 minutes total
+
     const check = setInterval(async () => {
       attempts++;
       const { data: task } = await supabase
@@ -51,13 +56,13 @@ export default function BuilderPage() {
 
       if (task?.status === 'in_review') {
         clearInterval(check);
-        setResponses(prev => [...prev, {role:'builder', text: task.output_text || '(done)'}]);
+        setResponses(prev => prev.filter(r => r.text !== '⏳ Processing...').concat({role:'builder', text: task.output_text || '(done)'}));
       } else if (task?.status === 'failed') {
         clearInterval(check);
-        setResponses(prev => [...prev, {role:'builder', text: `❌ Failed: ${task.output_text}`}]);
-      } else if (attempts > 20) {
+        setResponses(prev => prev.filter(r => r.text !== '⏳ Processing...').concat({role:'builder', text: `❌ Failed: ${task.output_text}`}));
+      } else if (attempts > maxAttempts) {
         clearInterval(check);
-        setResponses(prev => [...prev, {role:'builder', text:'⏰ Timeout'}]);
+        setResponses(prev => prev.filter(r => r.text !== '⏳ Processing...').concat({role:'builder', text:'⏰ Still working... check Render logs for progress.'}));
       }
     }, 2000);
   };
